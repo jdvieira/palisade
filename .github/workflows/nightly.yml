@@ -1,7 +1,7 @@
 name: Nightly image
 
 # PRERELEASE channel: every push to main (each squash-merged PR) publishes
-# `ghcr.io/shakes63/palisade:nightly` plus an immutable `sha-<short>` pin, and
+# `ghcr.io/jdvieira/palisade:nightly` plus an immutable `sha-<short>` pin, and
 # `gh workflow run nightly.yml` still works for a build on demand. It NEVER
 # touches `latest` or the semver tags, so stable (Community Applications) users
 # can't see it. A box opts in by pointing its container at `:nightly`
@@ -76,7 +76,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/shakes63/palisade
+          images: ghcr.io/jdvieira/palisade
           # Deliberately no `latest` and no semver tags here — structurally
           # impossible for a nightly to reach the stable channel.
           tags: |
@@ -93,14 +93,14 @@ jobs:
           push: false
           load: true
           platforms: linux/amd64
-          tags: ghcr.io/shakes63/palisade:scan
+          tags: ghcr.io/jdvieira/palisade:scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Trivy scan (block on CRITICAL)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/shakes63/palisade:scan
+          image-ref: ghcr.io/jdvieira/palisade:scan
           format: table
           exit-code: "1"
           severity: CRITICAL
