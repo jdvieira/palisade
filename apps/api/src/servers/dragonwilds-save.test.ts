@@ -87,8 +87,14 @@ describe("dragonwildsWorldRules", () => {
         "Difficulty.Player.HealthScale": 1,
         "Difficulty.Player.KeepInventoryOnDeath": true,
         "Difficulty.AI.Goblin.Damage": 0.7,
+        "Difficulty.Progression.BuildingMaterialCostScale": 0,
         WORLD_NAME: "XtSY",
       }),
-    ).toEqual({ [XP]: 3, "Difficulty.Player.KeepInventoryOnDeath": 1, "Difficulty.AI.Goblin.Damage": 0.7 });
+    ).toEqual({
+      [XP]: 3,
+      "Difficulty.Player.KeepInventoryOnDeath": 1,
+      "Difficulty.AI.Goblin.Damage": 0.7,
+      "Difficulty.Progression.BuildingMaterialCostScale": 0,
+    });
   });
 });
