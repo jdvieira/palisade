@@ -1,9 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { mkdir, writeFile, readFile, stat, chmod, chown } from "node:fs/promises";
+import { Injectable, Logger } from "@nestjs/common";
+import { mkdir, writeFile, readFile, stat, chmod, chown, copyFile } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { Game, type ServerConfigValues } from "@ark/shared";
 import { CryptoService } from "../crypto/crypto.service";
 import { CatalogService } from "../catalog/catalog.service";
+import { dragonwildsWorldRules } from "../catalog/dragonwilds.catalog";
 import { SERVER_UID, SERVER_GID } from "../common/images";
 import { loadEnv } from "../config/env";
 import {
@@ -22,6 +23,7 @@ import {
   renderDstShardInis,
   DST_WORLDGEN_OVERRIDES,
 } from "./runtime-spec";
+import { DW_DIFFICULTY_NORMAL, readWorldSave, sameWorldRules, writeWorldRules } from "./dragonwilds-save";
 
 /** The subset of a Server row the config writers read. */
 export interface ConfigWriterRow {
@@ -57,6 +59,8 @@ const portsOf = (s: ConfigWriterRow) => ({
  */
 @Injectable()
 export class ServerConfigWriter {
+  private readonly logger = new Logger(ServerConfigWriter.name);
+
   constructor(
     private readonly crypto: CryptoService,
     private readonly catalog: CatalogService,
@@ -82,10 +86,38 @@ export class ServerConfigWriter {
       game === Game.RUST ||
       game === Game.BEAMMP ||
       game === Game.PALWORLD_WINE ||
-      game === Game.CS2 || // pure env (joedwards32 renders its own cfgs)
-      game === Game.DRAGONWILDS // the image writes DedicatedServer.ini from env
+      game === Game.CS2 // pure env (joedwards32 renders its own cfgs)
     )
       return;
+
+    // Dragonwilds: the image writes DedicatedServer.ini from env; the world rules
+    // (XP etc.) live in the world save, patched here while the container is gone.
+    // Only Normal worlds: an in-client Custom world owns its rules, and Hard is untested.
+    if (game === Game.DRAGONWILDS) {
+      const cfg = JSON.parse(server.configJson) as ServerConfigValues;
+      const values = cfg.values ?? {};
+      const world = typeof values.WORLD_NAME === "string" && values.WORLD_NAME.trim() ? values.WORLD_NAME.trim() : "MyWorld";
+      const file = join(env.DATA_DIR, "instances", server.id, "gamefiles", "RSDragonwilds", "Saved", "SaveGames", `${world}.sav`);
+      const save = await readFile(file).catch(() => null);
+      if (!save) return; // first boot creates the world; the rules land on the next start
+      let patched: Buffer;
+      try {
+        const current = readWorldSave(save);
+        if (current.difficulty !== DW_DIFFICULTY_NORMAL) {
+          this.logger.warn(`Dragonwilds ${server.id}: world "${world}" is not Normal; leaving its world rules alone`);
+          return;
+        }
+        patched = writeWorldRules(save, dragonwildsWorldRules(values));
+        if (sameWorldRules(readWorldSave(patched).rules, current.rules)) return;
+      } catch (err) {
+        // A save layout from a newer game build must never block the start.
+        this.logger.warn(`Dragonwilds ${server.id}: world rules not applied: ${(err as Error).message}`);
+        return;
+      }
+      await copyFile(file, `${file}.palisade-backup`);
+      await writeFile(file, patched);
+      return;
+    }
 
     // Palworld: settings come from env (thijsvanloef renders PalWorldSettings.ini), so
     // the only thing to write is the UE4SS preload. It CANNOT be a container-wide

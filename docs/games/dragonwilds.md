@@ -9,6 +9,11 @@
 ## First boot
 The image pulls the ~5 GB server with SteamCMD on every start (the first pass often fails with "Missing configuration" and retries itself). A world named after the **World name** setting is generated on the first boot, which takes a couple of minutes; the ready marker is the `ReadyToJoin ... value[1]` session line. RAM is roughly 2 GB plus 1 GB per player; the build caps a server at 6 players. World type (Standard, Custom, Creative) is chosen in-client when a world is created, so an auto-generated world is Standard.
 
+## World rules
+The **Progression**, **Player**, **Survival** and **Enemies** settings tabs hold the game's Custom-mode rules: XP gain, crafting and building cost, carry capacity, hunger and thirst drain, raid frequency, and damage, health and resistances per enemy family. They live in the world save, not the server config, so Palisade writes them into `<World name>.sav` while the server is stopped, before each start. A change therefore applies on the next restart, and a brand-new server picks them up from its second start, once the world exists. Only rules moved off their default are written; putting one back to its default removes it. The previous save is kept as `<World name>.sav.palisade-backup` each time the rules change.
+
+The world stays **Standard**, so existing characters keep joining with nothing to change on the players' side. Worlds created in-client as Custom, Hard or Creative are left alone: the in-game rules own them.
+
 ## Mods
 Nexus Mods only, no workshop. The Linux server loads **pak mods**: a `.pak` with its matching `.utoc` and `.ucas`, uploaded together on the Mods tab into `RSDragonwilds/Content/Paks/~mods`. A `.pak` alone is found but never mounted, and the Mods tab flags it. UE4SS or Lua mods hook the Windows client and cannot run on the server. Server-side paks do not change how the world is listed, and clients without the files still joined in testing, but visual mods must also be installed on every client. Mods are read at startup only.
 
